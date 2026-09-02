@@ -1,17 +1,21 @@
 ---
 name: agy-worker
-description: Delegate bounded, low-ambiguity implementation work from Codex to Google Antigravity CLI workers while Codex retains planning, architecture, and final verification.
+description: Delegate bounded, low-ambiguity implementation work from Codex to Google Antigravity CLI workers while Codex retains planning, architecture, runtime verification, and final ownership.
 ---
 
 # AGY Worker
 
 Use Antigravity CLI (`agy`) as a subordinate implementation worker for repetitive, well-specified coding tasks.
 
+The architectural model is not peer-to-peer agent chat. Treat delegation as a narrow ABI:
+
+`user intent -> Codex decision/ambiguity reduction -> Delegation IR -> AGY execution -> worker report + runtime evidence -> Codex verification`
+
 ## Authority model
 
-Codex is the planner, architect, reviewer, and final authority.
+Codex is planner, architect, reviewer, and final authority.
 
-Antigravity is an executor. It may make local implementation choices only inside the boundaries of a task contract. It must not silently take ownership of architecture, product requirements, public API design, or cross-cutting decisions.
+Antigravity is an executor. It may make local implementation choices only inside the contract. It must not silently take ownership of architecture, product requirements, public API design, dependency selection, or cross-cutting decisions.
 
 ## When to delegate
 
@@ -21,135 +25,118 @@ Delegate when the subtask is all or nearly all of the following:
 - locally scoped;
 - repetitive or implementation-heavy;
 - based on decisions Codex has already made;
-- easy to verify with a diff, tests, lint, typecheck, or explicit acceptance criteria;
+- objectively verifiable;
 - unlikely to require discovering the root cause of an unknown failure.
 
-Typical candidates:
+Good candidates include boilerplate, mappings/adapters/DTOs, repetitive tests, mechanical refactors, known-semantics lint/type fixes, responsive polish after layout decisions are closed, and implementation of an already-decided interface.
 
-- boilerplate and repetitive CRUD;
-- filling out mappings, adapters, DTOs, fixtures, or test cases from an established pattern;
-- mechanical refactors with a known target shape;
-- lint/type fixes after Codex understands the intended semantics;
-- responsive/UI cleanup after layout rules are decided;
-- documentation or config updates with explicit source-of-truth requirements;
-- implementation of an already-decided interface.
-
-## When Codex must keep the work
-
-Do not delegate unresolved work involving:
-
-- architecture or module boundaries;
-- ambiguous user intent;
-- root-cause debugging when the cause is unknown;
-- security-sensitive design;
-- dependency selection;
-- database/schema architecture;
-- public API design;
-- broad refactors whose direction is not already decided;
-- contradictory requirements.
-
-If a task is useful to delegate but still ambiguous, Codex must first inspect the repository and reduce it into a bounded execution unit.
+Keep unresolved architecture, ambiguous intent, unknown-root-cause debugging, security-sensitive design, dependency selection, database/schema architecture, public API design, broad directional refactors, and contradictory requirements in Codex.
 
 ## Delegation rubric
 
-Before delegation, score the candidate subtask mentally on four properties:
+Before delegation, judge:
 
-1. **Specification completeness** — can the desired end state be stated precisely?
-2. **Scope boundedness** — can allowed files/directories be named?
-3. **Decision closure** — are architectural/product choices already settled?
-4. **Verifiability** — can success be checked objectively?
+1. specification completeness;
+2. scope boundedness;
+3. decision closure;
+4. verifiability.
 
-Delegate only when all four are strong. Otherwise keep the task or split it further.
+Delegate only when all are strong. This rubric is a bootstrap heuristic; use telemetry/evals over time to replace intuition with task-class reliability data.
 
-## Build the task contract
+## Delegation IR v2
 
-Use `templates/task-contract.md` as the canonical structure.
+Use `templates/task-contract.md`. It contains two layers:
 
-The contract must contain these semantic classes:
+1. **`AGY_META` JSON** — machine-readable metadata consumed by the wrapper;
+2. **semantic Markdown** — model-readable objective, epistemic state, decisions, constraints, actions, hints, acceptance criteria, and stop conditions.
 
-- `OBJECTIVE`: one precise outcome;
-- `CONFIRMED_FACTS`: facts Codex verified from the repository;
-- `ASSUMPTIONS`: claims the worker must verify before relying on them;
-- `UNKNOWNS`: unresolved facts that are allowed to remain unresolved only if they do not block the task;
-- `SCOPE`: files/directories the worker may change;
-- `DECISIONS`: choices already made by Codex and not open for reconsideration;
-- `CONSTRAINTS`: invariants that must remain true;
-- `MUST_NOT`: prohibited actions;
-- `IMPLEMENTATION_TASKS`: concrete execution steps or work items;
-- `ACCEPTANCE_CRITERIA`: observable success conditions;
-- `STOP_CONDITIONS`: conditions requiring `BLOCKED` instead of improvisation.
+`AGY_META` must define:
 
-### Epistemic discipline
+- `contract_version: "2"`;
+- stable `task_id`;
+- `task_class` for telemetry/routing;
+- authoritative `scope.allow` and optional `scope.deny`;
+- planner-selected verification commands;
+- whether a clean Git baseline is required.
 
-Never place an assumption in `CONFIRMED_FACTS`.
+Keep epistemic roles distinct:
 
-Do not send brainstorming, discarded options, or unresolved chain-of-thought to the worker. Send the decision result and only the rationale needed to prevent misinterpretation.
+- `CONFIRMED_FACTS` — verified facts;
+- `ASSUMPTIONS` — worker must verify before relying on them;
+- `UNKNOWNS` — non-blocking unknowns;
+- `DECISIONS` — closed planner decisions;
+- `CONSTRAINTS` — invariants;
+- `MUST_NOT` — absolute prohibitions;
+- `STOP_CONDITIONS` — conditions requiring escalation.
 
-A statement such as “there may already be a shared store” belongs in `ASSUMPTIONS`, never `CONFIRMED_FACTS`.
+Never place an assumption in `CONFIRMED_FACTS`. Send decision results, not brainstorming or discarded alternatives.
+
+## Actions vs hints
+
+`REQUIRED_ACTIONS` are mandatory work/outcomes.
+
+`IMPLEMENTATION_HINTS` are deliberately softer. They may guide the worker toward an existing pattern without turning the planner into a line-by-line macro recorder. The worker may choose an equivalent local implementation only if it remains inside scope and preserves decisions, constraints, and acceptance criteria.
 
 ## Mandatory stop behavior
 
-At minimum, require `BLOCKED` when:
+Require `BLOCKED` when a confirmed fact is false, a required artifact is missing, work needs an unauthorized architectural/public-interface/dependency decision, implementation requires an out-of-scope file, or requirements conflict.
 
-- a confirmed fact is false;
-- a required file/API/module does not exist;
-- implementation requires an architectural change not authorized by the contract;
-- implementation requires modifying outside `SCOPE`;
-- a public interface must change unexpectedly;
-- requirements conflict;
-- a new dependency appears necessary but is not explicitly authorized.
-
-The worker must report the observed state and request a planner decision instead of inventing a replacement design.
+The worker reports the observed state and exact planner decision required instead of improvising replacement architecture.
 
 ## Invoke the worker
 
-1. Write the final contract to a UTF-8 temporary Markdown file.
-2. Run the wrapper from the target repository root:
+Write the contract to a UTF-8 file, then run:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME/.codex/skills/agy-worker/scripts/invoke-agy.ps1" `
-  -TaskFile "<absolute-or-relative-task-contract>" `
+  -TaskFile "<task-contract>" `
   -WorkingDirectory "<repository-root>"
 ```
 
-The model must be pinned through either `-Model` or `AGY_WORKER_MODEL`. Prefer an explicit Flash model slug returned by `agy models`; do not guess a model slug.
+Pin the worker model via `-Model` or `AGY_WORKER_MODEL` using an exact slug returned by `agy models`.
 
-The wrapper calls Antigravity in headless mode, enforces `schemas/worker-result.schema.json`, and returns a machine-readable envelope.
+By default the wrapper requires a clean Git working tree so it can attribute post-run changes to the worker. `-AllowDirty` is explicit opt-in and downgrades attribution confidence. `-Unsafe` remains explicit opt-in for unrestricted Antigravity permissions.
+
+## Evidence model
+
+Never treat the worker's self-assessment as proof.
+
+The wrapper returns two separate layers:
+
+- `worker_result` — worker-authored structured report;
+- `runtime_evidence` — wrapper-observed repository state.
+
+Runtime evidence includes Git head before/after, actual changed paths, allowed/denied scope, scope validity, out-of-scope files, dirty baseline, and attribution confidence.
+
+If `runtime_evidence.scope_valid` is false, treat the delegation as a policy violation even if the worker reports `SUCCESS`.
 
 ## Handle results
 
 ### SUCCESS
 
-Codex must independently:
-
-1. inspect the actual diff;
-2. check that changed files stayed within scope;
-3. run or verify relevant tests/checks when appropriate;
-4. compare the implementation against the original user intent, not merely the worker report;
-5. accept, fix locally, or send a narrower rework contract.
-
-Never treat the worker's self-assessment as proof of correctness.
+Codex independently inspects the actual diff, scope evidence, relevant checks, and the original user intent. Accept, fix locally, or issue a narrower rework contract.
 
 ### BLOCKED
 
-Read `blocker_type`, `observed_state`, and `requested_decision`.
-
-Codex resolves the ambiguity or makes the missing decision, then issues a new contract. Do not tell the worker to “figure it out.”
+Read `blocker_type`, `observed_state`, and `requested_decision`. Resolve the missing decision and issue a new contract. Do not tell the worker to figure out architectural ambiguity.
 
 ### FAILED
 
-Inspect the failure. Retry only if the failure is operational or if Codex can produce a materially clearer contract.
+Retry only for operational failures or when Codex can materially improve/narrow the contract.
 
 ## Rework
 
-A rework contract should reference the observed defect, preserve all still-valid decisions, and narrow scope further whenever possible. Do not resend a vague version of the original task.
+Preserve still-valid decisions, reference the observed defect/evidence, narrow scope when possible, and use a new attempt while retaining the same logical task identity when useful for telemetry.
 
-## Permission policy
+## Evaluation
 
-Do not use `-Unsafe` by default.
+Use `evals/` to compare at least:
 
-Prefer Antigravity's scoped permission allow-list for known commands and paths. Use `-Unsafe` only when the user has deliberately chosen unrestricted tool approval for a trusted local workspace.
+- Codex alone;
+- Codex planner -> AGY worker -> Codex reviewer.
+
+Track final correctness, first-pass success, rework count, scope violations, verification results, elapsed time, and token/cost data when available. The long-term goal is an empirical routing policy by task class, not an ever-growing static prompt rubric.
 
 ## Final ownership
 
-Codex owns the final answer and repository state. Antigravity is a worker, not a peer planner.
+Codex owns the final answer and repository state. Antigravity is a bounded worker, not a peer planner.

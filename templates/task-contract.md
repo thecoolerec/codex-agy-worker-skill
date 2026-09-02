@@ -1,5 +1,21 @@
 # AGY Task Contract
 
+<!-- AGY_META
+{
+  "contract_version": "2",
+  "task_id": "<stable-task-id>",
+  "task_class": "<e.g. dto-mapping|tests|mechanical-refactor|ui-polish|lint-fix>",
+  "scope": {
+    "allow": ["<repo-relative-path-or-glob>"],
+    "deny": []
+  },
+  "verification": {
+    "commands": ["<objective check command>"],
+    "require_clean_git": true
+  }
+}
+AGY_META -->
+
 ## OBJECTIVE
 
 <One precise, externally observable outcome.>
@@ -18,7 +34,9 @@
 
 ## SCOPE
 
-Allowed changes:
+Allowed changes are defined authoritatively by `AGY_META.scope.allow` above.
+
+Human-readable scope summary:
 
 - `<path-or-glob>`
 
@@ -38,10 +56,14 @@ Allowed changes:
 - Do not perform unrelated opportunistic refactors.
 - <Additional task-specific prohibitions.>
 
-## IMPLEMENTATION_TASKS
+## REQUIRED_ACTIONS
 
-1. <Concrete work item.>
-2. <Concrete work item.>
+1. <Outcome-relevant action that is mandatory.>
+2. <Outcome-relevant action that is mandatory.>
+
+## IMPLEMENTATION_HINTS
+
+- <Optional preferred implementation path. The worker may choose an equivalent local implementation only if it preserves DECISIONS, CONSTRAINTS, SCOPE, and acceptance criteria.>
 
 ## ACCEPTANCE_CRITERIA
 

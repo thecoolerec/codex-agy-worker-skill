@@ -1,64 +1,105 @@
 # codex-agy-worker-skill
 
-A Codex Skill that lets a strong planner/reviewer (Codex) delegate bounded, repetitive implementation work to Google Antigravity CLI (`agy`) workers while keeping architecture, ambiguity resolution, and final verification in Codex.
+A Codex Skill for delegating bounded implementation work to Google Antigravity CLI (`agy`) workers while Codex keeps architecture, ambiguity resolution, verification, and final ownership.
 
-The core idea is **planner → typed task contract → executor → typed result → reviewer**, not free-form agent-to-agent chat.
+The core model is a narrow delegation ABI, not free-form agent chat:
+
+```text
+User intent
+   ↓
+Codex (inspect / decide / reduce ambiguity)
+   ↓
+Delegation IR v2
+   ↓
+Antigravity / Flash (bounded execution)
+   ↓
+worker report + runtime evidence
+   ↓
+Codex (diff / tests / intent review)
+```
 
 ## Why
 
-Fast worker models are useful for boilerplate, repetitive refactors, tests, UI cleanup, mappings, and other implementation-heavy work. They are much less reliable when a task still contains hidden architectural decisions or ambiguous assumptions.
+Fast worker models are useful for boilerplate, repetitive refactors, tests, UI cleanup, mappings, adapters, and other implementation-heavy work. They become much less reliable when hidden architectural decisions or ambiguous assumptions remain.
 
-This skill makes delegation explicit:
+This project therefore separates:
+
+- **planning authority** from **execution capacity**;
+- facts from assumptions and decisions;
+- mandatory actions from implementation hints;
+- worker claims from runtime-observed evidence.
+
+## Delegation IR v2
+
+`templates/task-contract.md` contains a machine-readable `AGY_META` JSON block plus model-readable Markdown.
+
+The metadata carries:
+
+- `contract_version`;
+- stable `task_id`;
+- `task_class` for telemetry and future routing;
+- authoritative `scope.allow` / `scope.deny`;
+- planner-selected verification commands;
+- Git-baseline requirements.
+
+The Markdown preserves semantic roles such as `CONFIRMED_FACTS`, `ASSUMPTIONS`, `DECISIONS`, `CONSTRAINTS`, `MUST_NOT`, `REQUIRED_ACTIONS`, `IMPLEMENTATION_HINTS`, `ACCEPTANCE_CRITERIA`, and `STOP_CONDITIONS`.
+
+That separation is intentional: the worker should know what is true, what must be verified, what has already been decided, and exactly when it must stop instead of improvising.
+
+## Runtime evidence
+
+The wrapper does not trust the worker's `files_changed` field as the source of truth.
+
+After execution it independently returns:
 
 ```text
-User
-  ↓
-Codex (plan / decide / inspect)
-  ↓
-Task Contract
-  ↓
-Antigravity / Flash (execute)
-  ↓
-Structured Result
-  ↓
-Codex (diff / tests / review)
+runtime_evidence.git_head_before
+runtime_evidence.git_head_after
+runtime_evidence.actual_files_changed
+runtime_evidence.scope_valid
+runtime_evidence.out_of_scope_files
+runtime_evidence.attribution_confidence
 ```
+
+By default the Git working tree must be clean before delegation so post-run changes can be attributed reliably. `-AllowDirty` explicitly downgrades that confidence.
+
+If scope validation fails, Codex should treat the run as a policy violation even if the worker reports `SUCCESS`.
+
+## Good delegation candidates
+
+- repetitive tests after behavior is understood;
+- DTO/mapping/adapter boilerplate following an established pattern;
+- known-scope mechanical refactors;
+- responsive polish after UI/layout rules are decided;
+- straightforward lint/type fixes with known intended semantics;
+- implementation of an already-decided interface.
+
+Keep architecture, ambiguous requirements, public API/schema design, dependency selection, unknown-root-cause debugging, cross-cutting design, and security-sensitive decisions in Codex.
 
 ## Requirements
 
 - Windows PowerShell 5.1+ or PowerShell 7+
 - Codex with Agent Skills support
 - Google Antigravity CLI available as `agy`
-- An authenticated Antigravity CLI session
-- An exact worker model slug from `agy models`
-
-Antigravity headless mode supports one-shot prompts, JSON output, model/effort selection, JSON Schema-constrained output, and non-interactive execution. The wrapper uses those primitives directly.
+- authenticated Antigravity CLI session
+- exact worker model slug from `agy models`
+- Git repository for runtime evidence/scope validation
 
 ## Install
-
-From this repository:
 
 ```powershell
 .\scripts\install.ps1 -ConfigureGlobalAgents
 ```
 
-Use `-Force` to replace an existing installation:
-
-```powershell
-.\scripts\install.ps1 -ConfigureGlobalAgents -Force
-```
-
-By default the installer uses `$CODEX_HOME` when set, otherwise `$HOME\.codex`.
+Use `-Force` to replace an existing installation.
 
 ## Pin the worker model
-
-Do not guess the model name. First inspect available model slugs:
 
 ```powershell
 agy models
 ```
 
-Then pin the exact Flash model you want:
+Then set the exact slug you want:
 
 ```powershell
 [Environment]::SetEnvironmentVariable(
@@ -68,17 +109,11 @@ Then pin the exact Flash model you want:
 )
 ```
 
-Open a new terminal and verify:
+The wrapper intentionally fails when no model is pinned.
 
-```powershell
-$env:AGY_WORKER_MODEL
-```
+## Invoke
 
-The wrapper intentionally fails when no model is pinned so a delegation cannot silently fall back to an unintended model.
-
-## How Codex invokes it
-
-Codex builds a Task Contract using `templates/task-contract.md`, writes it to a UTF-8 file, then calls:
+Codex writes a v2 task contract and calls:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
@@ -87,93 +122,60 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -WorkingDirectory "C:\path\to\repo"
 ```
 
-Optional flags:
+Options:
 
 ```text
 -Model <slug>          Override AGY_WORKER_MODEL
 -Effort low|medium|high
 -Timeout 20m
--LogDirectory <path>   Persist runtime/result telemetry
+-LogDirectory <path>   Persist report/evidence/runtime telemetry
+-AllowDirty            Allow a dirty Git baseline; attribution becomes low-confidence
 -Unsafe                Pass --dangerously-skip-permissions
 ```
 
-`-Unsafe` is deliberately opt-in. Prefer Antigravity's scoped permission rules.
+`-Unsafe` is deliberately opt-in. Prefer scoped Antigravity permissions.
 
-## Contract semantics
+## Result model
 
-The contract separates information by epistemic and authority type:
-
-- `CONFIRMED_FACTS` — verified repository facts;
-- `ASSUMPTIONS` — must be checked before use;
-- `DECISIONS` — closed planner decisions;
-- `MUST_NOT` — absolute prohibitions;
-- `STOP_CONDITIONS` — conditions that require escalation instead of improvisation.
-
-That separation matters more than whether the serialization format is Markdown, XML, YAML, or JSON: the worker needs explicit semantic roles and clear stop behavior.
-
-## Result contract
-
-`schemas/worker-result.schema.json` forces the worker to return one of:
+`schemas/worker-result.schema.json` constrains the worker report to:
 
 - `SUCCESS`
 - `BLOCKED`
 - `FAILED`
 
-A blocked result includes the observed repository state and the exact planner decision required. Codex then resolves the ambiguity and may issue a narrower rework contract.
+A blocked result includes observed state and the planner decision required. Codex resolves the ambiguity and may issue a narrower rework contract.
 
-## Permissions
+The outer wrapper result separates:
 
-Antigravity headless mode cannot stop for an interactive permission dialog. File operations inside the active workspace may be allowed by policy while commands that require approval can be soft-denied.
+```text
+worker_result      # worker-authored claim/report
+runtime_evidence   # wrapper-observed repository evidence
+runtime            # provider/model/time/usage telemetry
+```
 
-Prefer scoped Antigravity permission rules for the commands your projects actually need. Reserve `-Unsafe` for trusted workspaces where unrestricted approval is intentional.
+## Evaluation and routing
+
+`evals/` seeds a real delegation benchmark. Compare:
+
+- **A — Codex alone**
+- **B — Codex planner → AGY worker → Codex reviewer**
+
+Track final correctness, first-pass success, rework count, scope violations, verification results, elapsed time, and token/cost data when available.
+
+The four-part delegation rubric (specification completeness, scope boundedness, decision closure, verifiability) is only a bootstrap. The long-term goal is to learn which task classes are reliably delegable from actual telemetry instead of relying forever on intuition.
 
 ## Validate
-
-Static repository checks:
 
 ```powershell
 python -m pip install pytest
 python -m pytest -q
 ```
 
-Optional live smoke test (this actually invokes `agy` in a temporary directory):
+Optional live smoke test:
 
 ```powershell
 .\tests\Test-Live.ps1
 ```
-
-## Suggested workflow
-
-Good delegation candidates:
-
-- repetitive tests after behavior is understood;
-- DTO/mapping boilerplate following existing patterns;
-- known-scope mechanical refactors;
-- responsive polish after UI rules are decided;
-- straightforward lint/type fixes with known intended semantics.
-
-Keep in Codex:
-
-- architecture;
-- ambiguous requirements;
-- public API/schema design;
-- unknown-root-cause debugging;
-- cross-cutting design choices;
-- security-sensitive decisions.
-
-## Telemetry
-
-Set an optional log directory to collect result/runtime metadata:
-
-```powershell
-[Environment]::SetEnvironmentVariable(
-  "AGY_WORKER_LOG_DIR",
-  "$HOME\.codex\agy-worker-logs",
-  "User"
-)
-```
-
-This makes it possible to evaluate which task classes Flash handles reliably and refine delegation rules over time.
 
 ## License
 
