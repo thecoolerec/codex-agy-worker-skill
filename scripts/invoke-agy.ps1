@@ -93,6 +93,10 @@ $DeniedScope = @()
 if ($Meta.scope.PSObject.Properties.Name -contains "deny" -and $Meta.scope.deny) {
     $DeniedScope = @($Meta.scope.deny | ForEach-Object { [string]$_ })
 }
+$RequireCleanGit = $true
+if ($Meta.verification -and $Meta.verification.PSObject.Properties.Name -contains "require_clean_git") {
+    $RequireCleanGit = [bool]$Meta.verification.require_clean_git
+}
 
 $Prompt = $Preamble.TrimEnd() + "`n`n" + $Task.Trim() + "`n"
 $Args = @(
@@ -114,7 +118,7 @@ try {
     }
     $HeadBefore = (git rev-parse HEAD).Trim()
     $DirtyBefore = @(Get-GitChangedFiles)
-    if ($DirtyBefore.Count -gt 0 -and -not $AllowDirty) {
+    if ($DirtyBefore.Count -gt 0 -and $RequireCleanGit -and -not $AllowDirty) {
         Fail "Git working tree is not clean. Commit/stash existing changes or pass -AllowDirty to explicitly downgrade attribution confidence."
     }
 
