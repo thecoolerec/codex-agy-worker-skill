@@ -1,6 +1,6 @@
 ---
 name: agy-worker
-description: Delegate bounded, low-ambiguity implementation work from Codex to Google Antigravity CLI workers while Codex retains planning, architecture, runtime verification, and final ownership.
+description: Prefer this skill for bounded, low-ambiguity, repetitive or implementation-heavy coding work that can be delegated to Google Antigravity CLI workers while Codex retains planning, architecture, runtime verification, and final ownership.
 ---
 
 # AGY Worker
@@ -19,7 +19,7 @@ Antigravity is an executor. It may make local implementation choices only inside
 
 ## When to delegate
 
-Delegate when the subtask is all or nearly all of the following:
+Prefer delegation when the subtask is all or nearly all of the following:
 
 - low ambiguity;
 - locally scoped;
@@ -29,6 +29,8 @@ Delegate when the subtask is all or nearly all of the following:
 - unlikely to require discovering the root cause of an unknown failure.
 
 Good candidates include boilerplate, mappings/adapters/DTOs, repetitive tests, mechanical refactors, known-semantics lint/type fixes, responsive polish after layout decisions are closed, and implementation of an already-decided interface.
+
+Do not keep suitable bounded work in Codex merely because Codex can implement it directly. Preserve Codex capacity for repository understanding, planning, architecture, ambiguity resolution, difficult debugging, review, and verification.
 
 Keep unresolved architecture, ambiguous intent, unknown-root-cause debugging, security-sensitive design, dependency selection, database/schema architecture, public API design, broad directional refactors, and contradictory requirements in Codex.
 
@@ -41,7 +43,7 @@ Before delegation, judge:
 3. decision closure;
 4. verifiability.
 
-Delegate only when all are strong. This rubric is a bootstrap heuristic; use telemetry/evals over time to replace intuition with task-class reliability data.
+When all four are strong, delegation should be the default rather than merely an option. When one or more are weak, keep the work in Codex or reduce it into a smaller bounded subtask first. This rubric is a bootstrap heuristic; use telemetry/evals over time to replace intuition with task-class reliability data.
 
 ## Delegation IR v2
 

@@ -1,11 +1,45 @@
-## Delegate bounded implementation work to Antigravity
+## Prefer Antigravity for bounded implementation work
 
 A global `agy-worker` skill is available.
 
-When a coding task contains repetitive, implementation-heavy, low-ambiguity subwork, proactively consider delegating that bounded subwork through `agy-worker` after you have inspected the repository and closed the important decisions.
+For coding tasks, actively identify bounded subwork that can be delegated to `agy-worker`.
 
-Codex remains responsible for understanding user intent, architecture, task decomposition, ambiguity resolution, final diff review, and final verification.
+Prefer delegation to `agy-worker` by default when the subtask is:
 
-Do not delegate unresolved architecture, product decisions, unknown-root-cause debugging, or security-sensitive design merely to save tokens.
+- implementation-heavy or repetitive;
+- low-ambiguity after repository inspection;
+- based on architecture and behavior already decided by Codex;
+- locally scoped with identifiable allowed files or directories;
+- objectively verifiable through diff review, tests, lint, typecheck, build, or explicit acceptance criteria.
 
-Before delegation, compile the subtask into the skill's typed Task Contract: objective, confirmed facts, assumptions, scope, closed decisions, constraints, prohibited actions, implementation tasks, acceptance criteria, and stop conditions.
+Typical work that should normally be delegated includes:
+
+- boilerplate and repetitive CRUD implementation;
+- DTOs, mappings, adapters, fixtures, and serializers following established project patterns;
+- expansion of tests from an existing testing pattern;
+- mechanical refactors with a known target shape;
+- repetitive lint or type fixes with known intended semantics;
+- responsive UI polish after layout and interaction rules are already decided;
+- propagation of already-decided fields, interfaces, or behavior across multiple files;
+- other routine implementation work where Codex's reasoning capability is not the bottleneck.
+
+Do not keep suitable work in Codex merely because Codex is capable of implementing it directly. Preserve Codex capacity for planning, repository understanding, architectural decisions, ambiguity resolution, difficult debugging, review, and verification.
+
+Codex must retain work involving:
+
+- unresolved architecture or module boundaries;
+- ambiguous product requirements or user intent;
+- unknown-root-cause debugging;
+- public API or schema design;
+- dependency selection;
+- cross-cutting design choices;
+- security-sensitive decisions;
+- tasks whose correct implementation cannot yet be stated or verified precisely.
+
+Before delegation, inspect enough of the repository to close important decisions and identify the repository context the worker should inspect before editing.
+
+Compile each delegated subtask into the `agy-worker` Delegation IR / Task Contract. Clearly separate confirmed facts, assumptions, decisions, allowed scope, constraints, required actions, implementation hints, acceptance criteria, and stop conditions, and include explicit context pointers when useful.
+
+Antigravity is a bounded implementation worker, not a peer planner. It may make local implementation choices within the contract but must return `BLOCKED` rather than invent architecture or silently expand scope.
+
+After every delegated run, Codex must independently inspect runtime evidence and the actual repository diff, verify scope compliance, run or verify appropriate checks, and judge the implementation against the original user intent. Never accept the worker's self-report as proof of correctness.
