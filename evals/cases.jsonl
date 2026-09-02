@@ -1,0 +1,5 @@
+{"id":"E001","task_class":"dto-mapping","description":"Implement repetitive mappings following an established repository pattern.","delegate_expected":true}
+{"id":"E002","task_class":"unit-test-expansion","description":"Add test cases from an already-understood behavior matrix and existing test style.","delegate_expected":true}
+{"id":"E003","task_class":"mechanical-refactor","description":"Perform a known-scope mechanical refactor with a fixed target shape.","delegate_expected":true}
+{"id":"E004","task_class":"ui-polish","description":"Apply responsive/mobile polish after layout and breakpoint decisions are closed.","delegate_expected":true}
+{"id":"E005","task_class":"unknown-debugging","description":"Find the root cause of a failure whose cause is not yet understood.","delegate_expected":false}
