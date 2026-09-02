@@ -36,9 +36,9 @@ Codex must retain work involving:
 - security-sensitive decisions;
 - tasks whose correct implementation cannot yet be stated or verified precisely.
 
-Before delegation, inspect enough of the repository to close important decisions and identify the context the worker must inspect.
+Before delegation, inspect enough of the repository to close important decisions and identify the repository context the worker should inspect before editing.
 
-Compile each delegated subtask into the `agy-worker` Delegation IR / Task Contract. Clearly separate confirmed facts, assumptions, decisions, required context, allowed scope, constraints, required actions, implementation hints, acceptance criteria, and stop conditions.
+Compile each delegated subtask into the `agy-worker` Delegation IR / Task Contract. Clearly separate confirmed facts, assumptions, decisions, allowed scope, constraints, required actions, implementation hints, acceptance criteria, and stop conditions, and include explicit context pointers when useful.
 
 Antigravity is a bounded implementation worker, not a peer planner. It may make local implementation choices within the contract but must return `BLOCKED` rather than invent architecture or silently expand scope.
 
